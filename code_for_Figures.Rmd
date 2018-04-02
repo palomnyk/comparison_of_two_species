@@ -1,0 +1,283 @@
+---
+title: "R Notebook for Dr. Yogini Jaiswal's SP/SL Manuscript"
+output: html_notebook
+---
+
+First, Load in datasets and log2 transform them
+```{r}
+rm(list = ls()) #clear workspace
+
+is.nan.data.frame <- function(x){
+  do.call(cbind, lapply(x, is.nan))
+}
+
+gc_data <- read.table('gc_w_constituents.csv', sep=",", header=TRUE, row.names = 1, check.names = FALSE)
+#gc_data[[is.nan(gc_data)]] <- 0
+gc_data <- log2(gc_data +1)
+
+lc_data <- read.table('lc_w_constituents.csv', sep="\t", header=TRUE, row.names = 1, check.names = FALSE, encoding="text")
+lc_data[is.na(lc_data)] <- NA
+lc_data[is.na(lc_data)] <- 0
+#lc_data
+lc_data[is.nan(lc_data)] <- 0
+lc_data <- log2(lc_data + 1)
+
+maldi_data <- read.table('maldi_w_constituents.csv', sep=",", header=TRUE, row.names = 1, check.names = FALSE, na.strings = 0, encoding="text")
+maldi_data[is.na(maldi_data)] <- NA
+maldi_data[is.na(maldi_data)] <- 0
+#maldi_data[is.nan(maldi_data)] <- 0
+maldi_data <- log2(maldi_data + 1)
+
+head(maldi_data)
+```
+
+
+Function for box and whispers.
+```{r}
+build_boxplots <- function(table, y_label){
+par(mfrow=c(floor(nrow(table)/3),3), mar=c(.5,1.25,0.5,1) + .1, mai = c(0.3,0.5,0.3,0.15))
+for (row in 1:nrow(table)){
+    #print(row)
+    lmts <- range(sp,sl)
+    sp = unlist(table[row, c(1:5)])
+    sl = unlist(table[row, c(6:10)])
+    boxplot(sl, sp, main = row.names(table)[row], ylim = c(min(table[row,]), max(table[row,])), ylab = y_axis_label, names=c("Silver","Green"))
+    par(new=TRUE)
+    stripchart(sl,sp, method='stack', vertical=TRUE, add=T, pch=1)
+  }
+}
+```
+forloop to get plots
+```{r}
+#data <- c(gc_data, lc_data, maldi_data)
+#y_labels <- c("Area", "Area", "Intensity")
+
+#for (i in 1:3){
+  #build_boxplots(data[i], y_labels[i])
+#}
+```
+
+
+```{r}
+#get adjusted pvals
+pval <- c()
+for (row in 1:nrow(gc_data)){
+  sp = unlist(gc_data[row, c(1:5)])
+  sl = unlist(gc_data[row, c(6:10)])
+  pval <- c(pval, t.test(sp,sl)$p.value)
+}
+adj <- p.adjust(pval, method="BH")
+
+#cycle through data
+pdf( "gc_boxplot.pdf", width = 11, height = 8 )
+par(mfrow=c(floor(nrow(gc_data)/3),4), mar=c(.5,1.25,0.5,.5) + .1, mai = c(0.3,0.5,0.3,0.15))
+for (row in 1:nrow(gc_data)){
+    #print(row)
+    sp = unlist(gc_data[row, c(1:5)])
+    sl = unlist(gc_data[row, c(6:10)])
+    title = strsplit(row.names(gc_data)[row],",")[[1]][1]
+    if (adj[row] < 0.05){
+      title = paste(title, "*")
+    }
+    boxplot(sl, sp, main = title, ylim = c(min(gc_data[row,]), max(gc_data[row,])), ylab = "Area", names=c("Silver","Green"))
+    stripchart(list(sl,sp), method='jitter', jitter=.01, vertical=TRUE, add=T, pch=1)
+}
+print(adj)
+```
+
+```{r}
+#get adjusted pvals
+pval <- c()
+for (row in 1:nrow(lc_data)){
+  sp = unlist(lc_data[row, c(1:5)])
+  sl = unlist(lc_data[row, c(6:10)])
+  pval <- c(pval, t.test(sp,sl)$p.value)
+}
+adj <- p.adjust(pval, method="BH")
+
+#cycle through data
+pdf( "lc_boxplot.pdf", width = 11, height = 15 )
+par(mfrow=c(floor(nrow(lc_data)/3),4), mar=c(.5,1.25,0.5,.5) + .1, mai = c(0.3,0.5,0.3,0.15))
+for (row in 1:nrow(lc_data)){
+    #print(row)
+    sp = unlist(lc_data[row, c(1:5)])
+    sl = unlist(lc_data[row, c(6:10)])
+    title = strsplit(row.names(lc_data)[row],",")[[1]][1]
+    if (adj[row] < 0.05){
+      title = paste(title, "*")
+    }
+    boxplot(sl, sp, main = title, ylim = c(min(lc_data[row,]), max(lc_data[row,])), ylab = "Area", names=c("Silver","Green"))
+    par(new=TRUE)
+    stripchart(list(sl,sp), method='jitter', jitter=.01, vertical=TRUE, add=T, pch=1)
+}
+print(adj)
+```
+```{r}
+lc_data
+```
+
+
+```{r}
+pval <- c()
+for (row in 1:nrow(maldi_data)){
+  sp = unlist(maldi_data[row, c(1:5)])
+  sl = unlist(maldi_data[row, c(6:10)])
+  pval <- c(pval, t.test(sp,sl)$p.value)
+}
+adj <- p.adjust(pval, method="BH")
+
+pdf( "maldi_boxplot.pdf", width = 11, height = 15 )
+par(mfrow=c(floor(nrow(maldi_data)/3),3), mar=c(.5,1,0.4,.4) + .1, mai = c(0.3,0.4,0.3,0.15))
+for (row in 1:nrow(maldi_data)){
+    #print(row)
+    sp = unlist(maldi_data[row, c(1:5)])
+    sl = unlist(maldi_data[row, c(6:10)])
+    title = strsplit(row.names(maldi_data)[row],",")[[1]][1]
+    if (adj[row] < 0.05){
+      title = paste(title, "*")
+    }
+    boxplot(sl, sp, main = title, ylim = c(min(maldi_data[row,]), max(maldi_data[row,])), ylab = "Area", names=c("Silver","Green"))
+    par(new=TRUE)
+    stripchart(list(sl,sp), method='jitter', jitter=.01, vertical=TRUE, add=T, pch=1)
+}
+print("boxplots made")
+```
+
+
+
+Loops for making tables
+```{r}
+Constituents <- row.names(gc_data)
+ave_sp <- c()
+ave_sl <- c()
+min_sp <- c()
+max_sp <- c()
+min_sl <- c()
+max_sl <- c()
+wilcox <- c()
+t_test <- c()
+f_stat <- c()
+for (row in 1:nrow(gc_data)){
+    Constituents[row] <- strsplit(row.names(gc_data)[row],",")[[1]][1]
+    sp = unlist(gc_data[row, c(1:5)])
+    sl = unlist(gc_data[row, c(6:10)])
+    ave_sl <- c(ave_sl, mean(sl))
+    ave_sp <- c(ave_sp, mean(sp))
+    min_sp <- c(min_sp, min(sp))
+    max_sp <- c(max_sp, max(sp))
+    min_sl <- c(min_sl, min(sl))
+    max_sl <- c(max_sl, max(sl))
+    wilcox <- c(wilcox, wilcox.test(sl,sp)$p.value)
+    t_test <- c(t_test, t.test(sl,sp)$p.value)
+    f_stat <- c(f_stat, var.test(sp, sl)$p.value)
+}
+gc_table <- data.frame(Constituents)
+gc_table$"sl mean" <- ave_sl
+gc_table$"sp mean" <- ave_sp
+gc_table$"sl min" <- min_sl
+gc_table$"sp min" <- min_sp
+gc_table$"sl max" <- max_sl
+gc_table$"sp max" <- max_sp
+gc_table$"Wilcoxon Sum Rank" <- wilcox
+gc_table$"T test" <- t_test
+gc_table$"T test (adjusted)" <- p.adjust(t_test, "BH")
+gc_table$"F statistic" <- f_stat
+write.table(gc_table, file="gc_table.csv", sep = ",")
+library('gap')
+qqunif(t_test)
+p.adjust(t_test, method="BH")
+```
+
+```{r}
+t_test
+```
+
+
+```{r}
+Constituents <- row.names(lc_data)
+ave_sp <- c()
+ave_sl <- c()
+min_sp <- c()
+max_sp <- c()
+min_sl <- c()
+max_sl <- c()
+wilcox <- c()
+t_test <- c()
+f_stat <- c()
+for (row in 1:nrow(lc_data)){
+    Constituents[row] <- strsplit(row.names(lc_data)[row],",")[[1]][1]
+    sp = unlist(lc_data[row, c(1:5)])
+    sl = unlist(lc_data[row, c(6:10)])
+    ave_sl <- c(ave_sl, mean(sl))
+    ave_sp <- c(ave_sp, mean(sp))
+    min_sp <- c(min_sp, min(sp))
+    max_sp <- c(max_sp, max(sp))
+    min_sl <- c(min_sl, min(sl))
+    max_sl <- c(max_sl, max(sl))
+    wilcox <- c(wilcox, wilcox.test(sl,sp)$p.value)
+    t_test <- c(t_test, t.test(sl,sp)$p.value)
+    f_stat <- c(f_stat, var.test(sp, sl)$p.value)
+}
+lc_table <- data.frame(Constituents)
+lc_table$"sl mean" <- ave_sl
+lc_table$"sp mean" <- ave_sp
+lc_table$"sl min" <- min_sl
+lc_table$"sp min" <- min_sp
+lc_table$"sl max" <- max_sl
+lc_table$"sp max" <- max_sp
+lc_table$"Wilcoxon Sum Rank" <- wilcox
+lc_table$"T test" <- t_test
+lc_table$"T test (adjusted)" <- p.adjust(t_test, "BH")
+lc_table$"F statistic" <- f_stat
+write.table(lc_table, file="lc_table.csv", sep = ",")
+library('gap')
+qqunif(t_test)
+p.adjust(t_test, method="BH")
+```
+```{r}
+Constituents <- row.names(maldi_data)
+ave_sp <- c()
+ave_sl <- c()
+min_sp <- c()
+max_sp <- c()
+min_sl <- c()
+max_sl <- c()
+wilcox <- c()
+t_test <- c()
+f_stat <- c()
+for (row in 1:nrow(maldi_data)){
+    Constituents[row] <- strsplit(row.names(maldi_data)[row],",")[[1]][1]
+    sp = unlist(maldi_data[row, c(1:5)])
+    sl = unlist(maldi_data[row, c(6:10)])
+    ave_sl <- c(ave_sl, mean(sl))
+    ave_sp <- c(ave_sp, mean(sp))
+    min_sp <- c(min_sp, min(sp))
+    max_sp <- c(max_sp, max(sp))
+    min_sl <- c(min_sl, min(sl))
+    max_sl <- c(max_sl, max(sl))
+    wilcox <- c(wilcox, wilcox.test(sl,sp)$p.value)
+    t_test <- c(t_test, t.test(sl,sp)$p.value)
+    f_stat <- c(f_stat, var.test(sp, sl)$p.value)
+}
+maldi_table <- data.frame(Constituents)
+maldi_table$"sl mean" <- ave_sl
+maldi_table$"sp mean" <- ave_sp
+maldi_table$"sl min" <- min_sl
+maldi_table$"sp min" <- min_sp
+maldi_table$"sl max" <- max_sl
+maldi_table$"sp max" <- max_sp
+maldi_table$"Wilcoxon Sum Rank" <- wilcox
+maldi_table$"T test" <- t_test
+maldi_table$"T test (adjusted)" <- p.adjust(t_test, "BH")
+maldi_table$"F statistic" <- f_stat
+write.table(maldi_table, file="maldi_table.csv", sep = ",")
+
+#install.packages('gap')
+library('gap')
+qqunif(t_test)
+p.adjust(t_test, method="BH")
+```
+```{r}
+maldi_table
+```
+

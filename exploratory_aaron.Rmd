@@ -1,0 +1,126 @@
+---
+title: "R Notebook for Yogini"
+output: html_notebook
+---
+
+This is a notebook for exploring Dr. Y. Yerke's SL and SP datasets.
+
+The data for this is located in the file called sp_sl_study_gc_data.csv in the fold called yogini_SL_SP.  The first 5 columns are SP and the last 5 are SL.
+Rows 4, 16, and 22 were deleted because the samples were missing intensities.
+
+```{r}
+gc_raw <- read.table('new_sp_sl_study_gc_data.csv', sep="\t", header=TRUE, row.names = 1, check.names = FALSE)
+#rownames(gc_raw) <- gc_raw[,1]
+```
+plot the data; the each row will be a histogram
+```{r}
+for (row in 2:nrow(gc_raw)){
+  #print(row)
+  sp = unlist(gc_raw[row, c(1:5)])
+  sl = unlist(gc_raw[row, c(6:10)])
+  #print(row, min(sp), max(sp), min(sl), max(sl))
+  plot(1:5, sort(sp), type = 'b', col = "red", main = row, ylim = c(min(gc_raw[row,]), max(gc_raw[row,])), ylab = "Intensity")
+  par(new=TRUE)
+  points(1:5, sort(sl), type = 'b', col = "blue")
+  legend("topleft", legend=c("sp", "sl"),
+       col=c("red", "blue"), lty=1:2, cex=0.8, box.lty=0)
+}
+
+```
+
+
+
+Check for normality using shapiro.test.  The first five columns and the last five columns are seperate groups.
+```{r}
+shapiro_sp <- c()
+shapiro_sl <- c()
+
+#for loop cycles through all rows of gc_raw
+for (row in 1:nrow(gc_raw)){
+  #print(row)
+  sp = shapiro.test(unlist(gc_raw[row, c(1:5)]))
+  sl = shapiro.test(unlist(gc_raw[row, c(6:10)]))
+  shapiro_sp <- c(shapiro_sp, sp$p.value)#sp$p.value gets the p.value of sp
+  shapiro_sl <- c(shapiro_sl, sl$p.value)
+}
+gc_shapiro <- data.frame(cbind(shapiro_sp, shapiro_sl))
+gc_shapiro
+
+```
+#fails for rows with only 2 datapoints
+sp is not normal in samples 2 and 8.
+sl is not normal in sample 17.
+
+On examination, the cause seems to be 0 values in the set.
+
+
+Next we perform Bartlett test of homogeneity of variances.
+```{r}
+gc_bartlett <- c()
+
+#for loop cycles through all rows of gc_raw
+for (row in 1:nrow(gc_raw)){
+  print(as.vector(unlist(gc_raw[row, c(1:5)])))
+  sp = as.vector(unlist(gc_raw[row, c(1:5)]), "numeric")
+  sl = as.vector(unlist(gc_raw[row, c(6:10)]), "numeric")
+  bart = bartlett.test(sp, sl)
+  gc_bartlett <- c(gc_bartlett, bart$p.value)#sp$p.value gets the p.value of sp
+}
+
+gc_bartlett
+```
+To fix this later...
+
+
+
+To run simple t-test.  I hypothesis that all will be normal except for where the the shapiro.test was false.
+```{r}
+t_vals <- c()
+for (row in 1:nrow(gc_raw)){
+  #print(row)
+  sp = unlist(gc_raw[row, c(1:5)])
+  sl = unlist(gc_raw[row, c(6:10)])
+  s_tval = t.test(sp, sl)
+  t_vals <- c(t_vals, s_tval$p.value)
+}
+t_vals
+gc_raw$"T-test" <- t_vals
+```
+
+2 and 8 fail to reject the null hypothesis that they have no differences.
+
+
+This is the non-parametric wilcoxon rank sum.  
+```{r}
+wil_vals <- c()
+for (row in 1:nrow(gc_raw)){
+  #print(row)
+  sp = unlist(gc_raw[row, c(1:5)])
+  sl = unlist(gc_raw[row, c(6:10)])
+  s_tval = wilcox.test(sp, sl)
+  wil_vals <- c(wil_vals, s_tval$p.value)
+}
+wil_vals
+gc_raw$"Wilcoxon Rank Sum" <- wil_vals
+```
+2 and 8 also reject the null hypothesis
+
+```{r}
+f_vals <- c()
+for (row in 1:nrow(gc_raw)){
+  #print(row)
+  sp = unlist(gc_raw[row, c(1:5)])
+  sl = unlist(gc_raw[row, c(6:10)])
+  s_tval = var.test(sp, sl)
+  f_vals <- c(f_vals, s_tval$p.value)
+}
+f_vals
+gc_raw$"F-test" <- f_vals
+```
+
+
+
+```{r}
+write.table(gc_raw, file = "GC_sp_sl_ttest_wiltest_ftest.csv", sep = ",")
+```
+
